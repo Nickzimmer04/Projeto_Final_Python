@@ -29,3 +29,10 @@ dist/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local database
+pokedex.db
