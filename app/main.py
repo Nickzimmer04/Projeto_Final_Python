@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from app.schemas import PokemonBase
+from app.schemas import PokemonBase, PokemonUpdate  
 from app.database import Base, engine, get_db
 from app.models import Pokemon
 from sqlalchemy.orm import Session
@@ -72,4 +72,44 @@ def create_pokemon(pokemon: PokemonBase, db: Session = Depends(get_db)):
 
     return {
         "message": f"Pokémon {db_pokemon.name} do tipo {db_pokemon.type} de nível {db_pokemon.level} criado com sucesso!"
+    }
+
+@app.put("/pokemon/{pokemon_id}")
+def update_pokemon(
+    pokemon_id: int,
+    pokemon: PokemonUpdate,
+    db: Session = Depends(get_db)
+):
+    db_pokemon = db.query(Pokemon).filter(Pokemon.id == pokemon_id).first()
+
+    if not db_pokemon:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado")
+
+    # Atualiza apenas os campos fornecidos
+    if pokemon.name is not None:
+        db_pokemon.name = pokemon.name
+    if pokemon.type is not None:
+        db_pokemon.type = pokemon.type
+    if pokemon.level is not None:
+        db_pokemon.level = pokemon.level
+
+    db.commit()
+    db.refresh(db_pokemon)
+
+    return {
+        "message": f"Pokémon {db_pokemon.name} atualizado com sucesso!"
+    }
+
+@app.delete("/pokemon/{pokemon_id}")
+def delete_pokemon(pokemon_id: int, db: Session = Depends(get_db)):
+    db_pokemon = db.query(Pokemon).filter(Pokemon.id == pokemon_id).first()
+
+    if not db_pokemon:
+        raise HTTPException(status_code=404, detail="Pokémon não encontrado")
+
+    db.delete(db_pokemon)
+    db.commit()
+       
+    return {
+        "message": f"Pokémon {db_pokemon.name} deletado com sucesso!"
     }
