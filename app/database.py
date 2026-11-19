@@ -1,16 +1,16 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
+from dotenv import load_dotenv
 from app.models import Base
+import os
 
-# URL de conexão com SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite:///./pokedex.db"
+load_dotenv()
+
+# URL de conexão com PostgreSQL, carregada das variáveis de ambiente
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Criação do engine
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Criação da SessionLocal
 SessionLocal = sessionmaker(

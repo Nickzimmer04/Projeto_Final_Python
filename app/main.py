@@ -1,115 +1,32 @@
-from fastapi import FastAPI, Depends, HTTPException
-from app.schemas import PokemonBase, PokemonUpdate  
-from app.database import Base, engine, get_db
-from app.models import Pokemon
-from sqlalchemy.orm import Session
-from app.pokeapi import get_pokemon
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from app.database import Base, engine
+from app.routers.pokemon import router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if os.getenv("TESTING") != "1":
+        Base.metadata.create_all(bind=engine)
+
+    yield
 
 
 app = FastAPI(
-    title = "Pokedex API - Projeto final"
-    )
+    title="Pokedex API - Projeto final",
+    lifespan=lifespan
+)
 
-Base.metadata.create_all(bind=engine)
+app.include_router(router)
+
 
 @app.get("/health")
 def health_check():
     return {"status": "online"}
 
+
 @app.get("/")
 def get_message():
     return {"message": "Boas-vindas à API!"}
-
-@app.get("/pokemon")
-def list_pokemon(db: Session = Depends(get_db), skip: int = 0, limit: int = 10):
-    pokemons = db.query(Pokemon).offset(skip).limit(limit).all()
-    return pokemons
-
-@app.get("/pokemon/id/{pokemon_id}")
-def get_pokemon_by_id(pokemon_id: int, db: Session = Depends(get_db)):
-    pokemon = db.query(Pokemon).filter(Pokemon.id == pokemon_id).first()
-    if not pokemon:
-        raise HTTPException(status_code=404, detail="Pokémon não encontrado")
-    return pokemon
-
-@app.get("/pokemon/{name}")
-def read_pokemon(name: str):
-    pokemon = get_pokemon(name)
-
-    if "error" in pokemon:
-        raise HTTPException(
-            status_code=404,
-            detail=pokemon["error"]
-    )
-
-    return pokemon
-    
-
-@app.post("/pokemon")
-def create_pokemon(pokemon: PokemonBase, db: Session = Depends(get_db)):
-
-    # Verifica se já existe um Pokémon com o mesmo nome
-    existing_pokemon = db.query(Pokemon).filter(
-        Pokemon.name == pokemon.name
-    ).first()
-
-    if existing_pokemon:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Pokémon com o nome '{pokemon.name}' já existe."
-        )
-
-    # Cria o objeto somente se não houver duplicidade
-    db_pokemon = Pokemon(
-        name=pokemon.name,
-        type=pokemon.type,
-        level=pokemon.level
-    )
-
-    db.add(db_pokemon)
-    db.commit()
-    db.refresh(db_pokemon)
-
-    return {
-        "message": f"Pokémon {db_pokemon.name} do tipo {db_pokemon.type} de nível {db_pokemon.level} criado com sucesso!"
-    }
-
-@app.put("/pokemon/{pokemon_id}")
-def update_pokemon(
-    pokemon_id: int,
-    pokemon: PokemonUpdate,
-    db: Session = Depends(get_db)
-):
-    db_pokemon = db.query(Pokemon).filter(Pokemon.id == pokemon_id).first()
-
-    if not db_pokemon:
-        raise HTTPException(status_code=404, detail="Pokémon não encontrado")
-
-    # Atualiza apenas os campos fornecidos
-    if pokemon.name is not None:
-        db_pokemon.name = pokemon.name
-    if pokemon.type is not None:
-        db_pokemon.type = pokemon.type
-    if pokemon.level is not None:
-        db_pokemon.level = pokemon.level
-
-    db.commit()
-    db.refresh(db_pokemon)
-
-    return {
-        "message": f"Pokémon {db_pokemon.name} atualizado com sucesso!"
-    }
-
-@app.delete("/pokemon/{pokemon_id}")
-def delete_pokemon(pokemon_id: int, db: Session = Depends(get_db)):
-    db_pokemon = db.query(Pokemon).filter(Pokemon.id == pokemon_id).first()
-
-    if not db_pokemon:
-        raise HTTPException(status_code=404, detail="Pokémon não encontrado")
-
-    db.delete(db_pokemon)
-    db.commit()
-       
-    return {
-        "message": f"Pokémon {db_pokemon.name} deletado com sucesso!"
-    }

@@ -36,3 +36,7 @@ __pycache__/
 
 # Local database
 pokedex.db
+
+.env
+.env.*
+!.env.example
